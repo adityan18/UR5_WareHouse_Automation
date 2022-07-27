@@ -1,0 +1,71 @@
+<launch>
+    <!-- Launch Task-5 Simulation Environment in Gazebo -->
+    <include file="$(find pkg_vb_sim)/launch/task5_simulation.launch" />
+
+    <!-- Laucnh ROS IOT Bridge -->
+    <include file="$(find pkg_ros_iot_bridge)/launch/ros_iot_bridge.launch"/>
+
+    <group ns="ur5_1">
+
+        <include file="$(find pkg_moveit_ur5_1_config)/launch/planning_context.launch">
+            <arg name="load_robot_description" value="true"/>
+        </include>
+
+        <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+            <param name="/use_gui" value="false"/>
+            <rosparam param="/source_list">[/joint_states]</rosparam>
+        </node>
+        <!-- Launch Moveit Group Node -->
+        <include file="$(find pkg_moveit_ur5_1_config)/launch/move_group.launch">
+            <arg name="publish_monitored_planning_scene" value="true"/>
+        </include>
+        <include file="$(find pkg_moveit_ur5_1_config)/launch/moveit_rviz_robot1.launch">
+            <arg name="config" value="true"/>
+        </include>
+        <!-- Adding objects to scene -->
+        <arg name="scene_file" default="$(find pkg_task5)/config/rviz/shelf.scene"/>
+        <node name="moveit_publish_scene_from_text" pkg="moveit_ros_planning" type="moveit_publish_scene_from_text" args="$(arg scene_file)"/>
+    </group>
+
+
+    <group ns="ur5_2">
+
+        <include file="$(find pkg_moveit_ur5_2_config)/launch/planning_context.launch">
+            <arg name="load_robot_description" value="true"/>
+        </include>
+
+        <node name="joint_state_publisher" pkg="joint_state_publisher" type="joint_state_publisher">
+            <param name="/use_gui" value="false"/>
+            <rosparam param="/source_list">[/joint_states]</rosparam>
+        </node>
+        <!-- Launch Moveit Group Node -->
+        <include file="$(find pkg_moveit_ur5_2_config)/launch/move_group.launch">
+            <arg name="publish_monitored_planning_scene" value="true"/>
+        </include>
+        <include file="$(find pkg_moveit_ur5_2_config)/launch/moveit_rviz_robot2.launch">
+            <arg name="config" value="true"/>
+        </include>
+    </group>
+
+    <!-- Usage of 2D camera to recognise the colour of the packages-->
+    <node pkg='pkg_task5' name='node_camera' type='node_camera.py' output='screen'/>
+    <!-- Subscriber node for MQTT topic -->
+    <node pkg="pkg_task5" name="node_sub_mqtt_client" type="node_sub_mqtt_client.py" output="screen"></node>
+    <!-- Usage of UR5_1 arm to place the packages from the shelf on to the conveyor belt-->
+    <node pkg='pkg_task5' name='node_ur5_1' type='node_ur5_1.py' output='screen' args='ur5_1'/>
+    <!-- Usage of UR5_2 arm to sort the packages into their respective bins from the conveyor belt-->
+    <node pkg='pkg_task5' name='node_ur5_2' type='node_ur5_2.py' output='screen' args='ur5_2'/>
+    <!-- To control the conveyor belt-->
+    <node pkg='pkg_task5' name='node_conveyor' type='node_conveyor.py' output='screen' args='null'/>
+
+    <!-- Recording Bag File for Submission -->
+    <arg name="record" default="false"/>
+    <arg name="rec_name" default="t5.bag"/>
+
+    <group if="$(arg record)">
+        <node name="rosbag_record_pick" pkg="rosbag" type="record" args="record -O $(find pkg_task5)/bag_files/$(arg rec_name) --chunksize=10 /eyrc/vb/ur5_1/vacuum_gripper/logical_camera/ur5_1 /eyrc/vb/ur5_2/vacuum_gripper/logical_camera/ur5_2" output="screen"/>
+    </group>
+
+
+</launch>
+
